@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmartNet Analyzer</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div id="app">
+
+  <header class="app-header">
+    <h1>SmartNet Analyzer</h1>
+    <p>Mapeamento e roteamento de infraestrutura de cidades inteligentes</p>
+  </header>
+
+  <main class="layout">
+
+    <aside class="panel panel-input">
+      <h2>1. Mapear a cidade</h2>
+
+      <div class="field-row">
+        <label><input type="checkbox" id="chk-directed"> Direcionado</label>
+        <label><input type="checkbox" id="chk-weighted" checked> Ponderado</label>
+      </div>
+
+      <form id="form-edge" class="edge-form">
+        <input type="text" id="input-origem" placeholder="Origem" required>
+        <input type="text" id="input-destino" placeholder="Destino" required>
+        <input type="number" id="input-peso" placeholder="Peso" value="1" step="any">
+        <button type="submit" class="btn-primary">+ Aresta</button>
+      </form>
+
+      <table class="edge-table">
+        <thead><tr><th>Origem</th><th>Destino</th><th>Peso</th><th></th></tr></thead>
+        <tbody id="edge-list"></tbody>
+      </table>
+
+      <div class="button-row">
+        <button id="btn-aplicar-grafo" class="btn-primary">Aplicar grafo</button>
+        <button id="btn-grafo-teste">Carregar grafo de teste</button>
+        <button id="btn-limpar-grafo" class="btn-danger">Apagar grafo</button>
+      </div>
+
+      <h2>2. Estrutura em memória</h2>
+      <p class="hint">Lista de adjacência, implementada do zero — O(V + E) de espaço.</p>
+      <pre id="adjacency-view" class="adjacency-view">(grafo vazio)</pre>
+    </aside>
+
+    <section class="panel panel-graph">
+      <h2>3. Visualização</h2>
+      <svg id="graph-svg" viewBox="0 0 600 600"></svg>
+      <div class="legend">
+        <span class="legend-item"><i class="dot dot-default"></i>não visitado</span>
+        <span class="legend-item"><i class="dot dot-current"></i>atual</span>
+        <span class="legend-item"><i class="dot dot-visited"></i>visitado/finalizado</span>
+        <span class="legend-item"><i class="dot dot-queued"></i>na fila</span>
+        <span class="legend-item"><i class="line line-tree"></i>aceita / árvore</span>
+        <span class="legend-item"><i class="line line-explore"></i>em análise</span>
+        <span class="legend-item"><i class="line line-reject"></i>rejeitada</span>
+      </div>
+    </section>
+
+    <aside class="panel panel-algorithms">
+      <h2>4. Algoritmos</h2>
+
+      <div class="field-row">
+        <label for="select-origem">Vértice de origem (DFS/BFS/Dijkstra)</label>
+        <select id="select-origem"></select>
+      </div>
+
+      <div class="algo-buttons">
+        <button class="btn-algo" data-algo="dfs">DFS<br><small>Busca em Profundidade</small></button>
+        <button class="btn-algo" data-algo="bfs">BFS<br><small>Busca em Largura</small></button>
+        <button class="btn-algo" data-algo="dijkstra">Dijkstra<br><small>Rota mais curta</small></button>
+        <button class="btn-algo" data-algo="kruskal">Kruskal<br><small>Árvore Geradora Mínima</small></button>
+      </div>
+
+      <div id="complexity-box" class="complexity-box" hidden></div>
+
+      <div class="playback-controls" id="playback-controls" hidden>
+        <button id="btn-play">▶ Play</button>
+        <button id="btn-step">Passo</button>
+        <button id="btn-reset">Reiniciar</button>
+        <label class="speed-label">Velocidade
+          <input type="range" id="range-speed" min="1" max="10" value="6">
+        </label>
+        <span id="step-counter" class="step-counter"></span>
+      </div>
+
+      <h2>5. Execução e resultado</h2>
+      <ol id="step-log" class="step-log"></ol>
+      <div id="final-result" class="final-result" hidden></div>
+    </aside>
+
+  </main>
+
+  <footer class="app-footer">
+    <button id="btn-finalizar" class="btn-danger btn-finalizar">Finalizar aplicação</button>
+  </footer>
+
+  <div id="overlay-fim" class="overlay" hidden>
+    <div class="overlay-box">
+      <h2>Aplicação finalizada</h2>
+      <p>Obrigado por usar o SmartNet Analyzer.</p>
+    </div>
+  </div>
+
+</div>
+<script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
