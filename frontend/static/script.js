@@ -9,6 +9,7 @@ const COMPLEXITY = {
 
 let currentGraphData = { directed: false, weighted: true, adjacency: {} };
 let pendingEdges = [];
+let pendingVertices = [];
 let positions = {};
 let nodeEls = {};
 let edgeEls = {};
@@ -21,6 +22,9 @@ let stepIdx = 0;
 let playing = false;
 let timer = null;
 
+let viewState = { scale: 1, panX: 0, panY: 0 };
+let viewportG = null;
+
 document.addEventListener("DOMContentLoaded", () => {
   bindUI();
   fetchGrafo();
@@ -28,12 +32,23 @@ document.addEventListener("DOMContentLoaded", () => {
 
 function bindUI() {
   document.getElementById("form-edge").addEventListener("submit", onAddEdge);
+  document.getElementById("form-vertice").addEventListener("submit", onAddVertex);
   document.getElementById("chk-weighted").addEventListener("change", (e) => {
     document.getElementById("input-peso").disabled = !e.target.checked;
   });
   document.getElementById("btn-aplicar-grafo").addEventListener("click", aplicarGrafo);
   document.getElementById("btn-grafo-teste").addEventListener("click", carregarGrafoTeste);
   document.getElementById("btn-limpar-grafo").addEventListener("click", limparGrafo);
+  document.getElementById("btn-importar-lote").addEventListener("click", importarLote);
+
+  document.querySelectorAll(".tab-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      document.querySelectorAll(".tab-panel").forEach((p) => (p.hidden = true));
+      document.getElementById(btn.dataset.tab).hidden = false;
+    });
+  });
 
   document.querySelectorAll(".btn-algo").forEach((btn) => {
     btn.addEventListener("click", () => runAlgorithm(btn.dataset.algo, btn));
@@ -52,10 +67,39 @@ function bindUI() {
     }
   });
 
-  document.getElementById("btn-finalizar").addEventListener("click", finalizarAplicacao);
+  document.getElementById("btn-finalizar").addEventListener("click", () => {
+    document.getElementById("confirm-modal").hidden = false;
+  });
+  document.getElementById("btn-confirm-cancelar").addEventListener("click", () => {
+    document.getElementById("confirm-modal").hidden = true;
+  });
+  document.getElementById("btn-confirm-ok").addEventListener("click", () => {
+    document.getElementById("confirm-modal").hidden = true;
+    stopTimer();
+    document.getElementById("overlay-fim").hidden = false;
+  });
+
+  document.getElementById("btn-zoom-in").addEventListener("click", () => zoomBy(1.2));
+  document.getElementById("btn-zoom-out").addEventListener("click", () => zoomBy(1 / 1.2));
+  document.getElementById("btn-zoom-reset").addEventListener("click", resetView);
+  setupZoomPan(document.getElementById("graph-svg"));
 }
 
-// ---------- Entrada de dados (formulário de arestas) ----------
+// ---------- Toasts ----------
+
+function showToast(message, type = "info") {
+  const container = document.getElementById("toast-container");
+  const toast = document.createElement("div");
+  toast.className = `toast toast-${type}`;
+  toast.textContent = message;
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.classList.add("toast-fade-out");
+    setTimeout(() => toast.remove(), 200);
+  }, 3200);
+}
+
+// ---------- Entrada de dados ----------
 
 function onAddEdge(e) {
   e.preventDefault();
@@ -74,6 +118,57 @@ function onAddEdge(e) {
   document.getElementById("input-destino").value = "";
   document.getElementById("input-peso").value = "1";
   document.getElementById("input-origem").focus();
+}
+
+function onAddVertex(e) {
+  e.preventDefault();
+  const input = document.getElementById("input-vertice-isolado");
+  const v = input.value.trim();
+  if (!v) return;
+  if (!pendingVertices.includes(v)) pendingVertices.push(v);
+  input.value = "";
+  input.focus();
+  renderVertexList();
+}
+
+function importarLote() {
+  // Colar em lote descreve o grafo inteiro de uma vez, entao substitui
+  // (em vez de somar a) qualquer aresta/vertice que ja estava pendente -
+  // evita misturar com um grafo carregado antes (ex.: o grafo de teste).
+  const raw = document.getElementById("input-lote").value;
+  const linhas = raw.split("\n").map((l) => l.trim()).filter(Boolean);
+  const weighted = document.getElementById("chk-weighted").checked;
+
+  const novasArestas = [];
+  let invalidas = 0;
+
+  linhas.forEach((linha) => {
+    const partes = linha.split(/[,;\s]+/).filter(Boolean);
+    if (partes.length < 2 || partes.length > 3) {
+      invalidas++;
+      return;
+    }
+    const [origem, destino, pesoRaw] = partes;
+    const peso = weighted ? (pesoRaw !== undefined ? parseFloat(pesoRaw) || 1 : 1) : 1;
+    novasArestas.push({ origem, destino, peso });
+  });
+
+  if (novasArestas.length === 0) {
+    showToast("Nenhuma aresta válida encontrada para importar.", "error");
+    return;
+  }
+
+  pendingEdges = novasArestas;
+  pendingVertices = [];
+  renderEdgeTable();
+  renderVertexList();
+  document.getElementById("input-lote").value = "";
+
+  showToast(
+    `${novasArestas.length} aresta(s) importada(s), substituindo a lista anterior` +
+      (invalidas ? ` (${invalidas} linha(s) inválida(s) ignorada(s)).` : "."),
+    "success"
+  );
 }
 
 function renderEdgeTable() {
@@ -98,6 +193,11 @@ function renderEdgeTable() {
   });
 }
 
+function renderVertexList() {
+  const el = document.getElementById("vertex-list");
+  el.textContent = pendingVertices.length ? `Vértices isolados: ${pendingVertices.join(", ")}` : "";
+}
+
 function escapeHtml(str) {
   const div = document.createElement("div");
   div.textContent = str;
@@ -117,6 +217,7 @@ async function aplicarGrafo() {
     directed: document.getElementById("chk-directed").checked,
     weighted: document.getElementById("chk-weighted").checked,
     edges: pendingEdges,
+    vertices: pendingVertices,
   };
   const resp = await fetch("/api/grafo", {
     method: "POST",
@@ -125,6 +226,8 @@ async function aplicarGrafo() {
   });
   const data = await resp.json();
   renderAll(data);
+  const n = Object.keys(data.adjacency).length;
+  showToast(`Grafo aplicado: ${n} vértice(s).`, "success");
 }
 
 async function carregarGrafoTeste() {
@@ -135,23 +238,28 @@ async function carregarGrafoTeste() {
   document.getElementById("chk-weighted").checked = data.weighted;
   document.getElementById("input-peso").disabled = !data.weighted;
   pendingEdges = edgesFromAdjacency(data);
+  pendingVertices = [];
   renderEdgeTable();
+  renderVertexList();
 
   renderAll(data);
+  showToast("Grafo de teste do enunciado carregado.", "success");
 }
 
 async function limparGrafo() {
   const resp = await fetch("/api/grafo", { method: "DELETE" });
   const data = await resp.json();
   pendingEdges = [];
+  pendingVertices = [];
   renderEdgeTable();
+  renderVertexList();
   renderAll(data);
 }
 
 async function runAlgorithm(tipo, btnEl) {
   const vertices = Object.keys(currentGraphData.adjacency || {});
   if (vertices.length === 0) {
-    alert("Carregue um grafo primeiro.");
+    showToast("Carregue um grafo primeiro.", "error");
     return;
   }
 
@@ -159,7 +267,7 @@ async function runAlgorithm(tipo, btnEl) {
   if (tipo !== "kruskal") {
     const origem = document.getElementById("select-origem").value;
     if (!origem) {
-      alert("Selecione um vértice de origem.");
+      showToast("Selecione um vértice de origem.", "error");
       return;
     }
     body = { origem };
@@ -172,7 +280,7 @@ async function runAlgorithm(tipo, btnEl) {
   });
   const data = await resp.json();
   if (!resp.ok) {
-    alert(data.erro || "Erro ao executar o algoritmo.");
+    showToast(data.erro || "Erro ao executar o algoritmo.", "error");
     return;
   }
 
@@ -189,6 +297,7 @@ function renderAll(data) {
   renderAdjacencyView(data);
   renderGraphSvg(data);
   populateOriginSelect(data);
+  resetView();
   stopTimer();
   currentTrace = [];
   currentResult = null;
@@ -198,6 +307,9 @@ function renderAll(data) {
   document.getElementById("final-result").hidden = true;
   document.getElementById("final-result").innerHTML = "";
   document.querySelectorAll(".btn-algo").forEach((b) => b.classList.remove("active"));
+
+  const vertices = Object.keys(data.adjacency);
+  document.getElementById("empty-state").hidden = vertices.length > 0;
 }
 
 function renderAdjacencyView(data) {
@@ -211,7 +323,7 @@ function renderAdjacencyView(data) {
     const vizinhos = data.adjacency[v]
       .map((x) => (data.weighted ? `${x.vizinho}(${x.peso})` : x.vizinho))
       .join(", ");
-    return `${v}: ${vizinhos}`;
+    return `${v}: ${vizinhos || "(isolado)"}`;
   });
   el.textContent = linhas.join("\n");
 }
@@ -250,30 +362,88 @@ function edgeKey(origem, destino, directed) {
   return directed ? `${origem}=>${destino}` : [origem, destino].sort().join("--");
 }
 
-// ---------- Visualização SVG ----------
-
-function computeLayout(vertices) {
+// ---------- Layout por simulação de forças ----------
+// Posicionamento tipo Fruchterman-Reingold: comeca circular (estavel) e
+// relaxa repulsao entre todos os pares + atracao pelas arestas, para
+// espalhar o grafo e reduzir cruzamento de arestas em qualquer topologia
+// desconhecida (inclusive o grafo que o professor propuser na hora).
+function computeForceLayout(vertices, edges) {
   const n = vertices.length;
-  const cx = 300, cy = 300;
-  const r = n <= 1 ? 0 : Math.min(240, 90 + n * 12);
   const pos = {};
+  if (n === 0) return pos;
+  if (n === 1) {
+    pos[vertices[0]] = { x: 300, y: 300 };
+    return pos;
+  }
+
+  const r = Math.min(220, 70 + n * 10);
   vertices.forEach((v, i) => {
     const angle = (2 * Math.PI * i) / n - Math.PI / 2;
-    pos[v] = { x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) };
+    pos[v] = { x: 300 + r * Math.cos(angle), y: 300 + r * Math.sin(angle) };
   });
+
+  const k = Math.sqrt((560 * 560) / n) * 0.9;
+  const iterations = 200;
+
+  for (let iter = 0; iter < iterations; iter++) {
+    const temp = 40 * (1 - iter / iterations);
+    const disp = {};
+    vertices.forEach((v) => (disp[v] = { x: 0, y: 0 }));
+
+    for (let i = 0; i < n; i++) {
+      for (let j = i + 1; j < n; j++) {
+        const a = vertices[i], b = vertices[j];
+        const dx = pos[a].x - pos[b].x;
+        const dy = pos[a].y - pos[b].y;
+        const dist = Math.sqrt(dx * dx + dy * dy) || 0.01;
+        const force = (k * k) / dist;
+        const fx = (dx / dist) * force, fy = (dy / dist) * force;
+        disp[a].x += fx; disp[a].y += fy;
+        disp[b].x -= fx; disp[b].y -= fy;
+      }
+    }
+
+    edges.forEach(({ origem, destino }) => {
+      if (origem === destino || !pos[origem] || !pos[destino]) return;
+      const dx = pos[origem].x - pos[destino].x;
+      const dy = pos[origem].y - pos[destino].y;
+      const dist = Math.sqrt(dx * dx + dy * dy) || 0.01;
+      const force = (dist * dist) / k;
+      const fx = (dx / dist) * force, fy = (dy / dist) * force;
+      disp[origem].x -= fx; disp[origem].y -= fy;
+      disp[destino].x += fx; disp[destino].y += fy;
+    });
+
+    vertices.forEach((v) => {
+      const dx = disp[v].x, dy = disp[v].y;
+      const dLen = Math.sqrt(dx * dx + dy * dy) || 0.01;
+      const limited = Math.min(dLen, temp);
+      pos[v].x += (dx / dLen) * limited;
+      pos[v].y += (dy / dLen) * limited;
+      pos[v].x += (300 - pos[v].x) * 0.01;
+      pos[v].y += (300 - pos[v].y) * 0.01;
+      pos[v].x = Math.max(36, Math.min(564, pos[v].x));
+      pos[v].y = Math.max(36, Math.min(564, pos[v].y));
+    });
+  }
+
   return pos;
 }
+
+// ---------- Visualização SVG ----------
 
 function renderGraphSvg(data) {
   const svg = document.getElementById("graph-svg");
   svg.innerHTML = "";
   nodeEls = {};
   edgeEls = {};
+  viewportG = null;
 
   const vertices = Object.keys(data.adjacency);
   if (vertices.length === 0) return;
 
-  positions = computeLayout(vertices);
+  const edges = edgesFromAdjacency(data);
+  positions = computeForceLayout(vertices, edges);
 
   if (data.directed) {
     const defs = document.createElementNS(SVG_NS, "defs");
@@ -283,10 +453,13 @@ function renderGraphSvg(data) {
     svg.appendChild(defs);
   }
 
-  const edgesLayer = document.createElementNS(SVG_NS, "g");
-  svg.appendChild(edgesLayer);
+  viewportG = document.createElementNS(SVG_NS, "g");
+  viewportG.setAttribute("id", "viewport");
+  svg.appendChild(viewportG);
 
-  const edges = edgesFromAdjacency(data);
+  const edgesLayer = document.createElementNS(SVG_NS, "g");
+  viewportG.appendChild(edgesLayer);
+
   edges.forEach(({ origem, destino, peso }) => {
     const p1 = positions[origem], p2 = positions[destino];
     if (!p1 || !p2) return;
@@ -314,7 +487,7 @@ function renderGraphSvg(data) {
   });
 
   const nodesLayer = document.createElementNS(SVG_NS, "g");
-  svg.appendChild(nodesLayer);
+  viewportG.appendChild(nodesLayer);
 
   vertices.forEach((v) => {
     const p = positions[v];
@@ -333,6 +506,62 @@ function renderGraphSvg(data) {
     nodesLayer.appendChild(g);
     nodeEls[v] = g;
   });
+}
+
+// ---------- Zoom / Pan ----------
+
+function applyViewTransform() {
+  if (viewportG) {
+    viewportG.setAttribute("transform", `translate(${viewState.panX},${viewState.panY}) scale(${viewState.scale})`);
+  }
+}
+
+function zoomBy(factor) {
+  viewState.scale = Math.min(3, Math.max(0.35, viewState.scale * factor));
+  applyViewTransform();
+}
+
+function resetView() {
+  viewState = { scale: 1, panX: 0, panY: 0 };
+  applyViewTransform();
+}
+
+function setupZoomPan(svg) {
+  svg.addEventListener(
+    "wheel",
+    (e) => {
+      e.preventDefault();
+      zoomBy(e.deltaY < 0 ? 1.1 : 1 / 1.1);
+    },
+    { passive: false }
+  );
+
+  let dragging = false;
+  let lastX = 0, lastY = 0;
+
+  svg.addEventListener("pointerdown", (e) => {
+    dragging = true;
+    svg.classList.add("panning");
+    lastX = e.clientX;
+    lastY = e.clientY;
+    svg.setPointerCapture(e.pointerId);
+  });
+  svg.addEventListener("pointermove", (e) => {
+    if (!dragging) return;
+    const rect = svg.getBoundingClientRect();
+    const ratio = 600 / rect.width;
+    viewState.panX += (e.clientX - lastX) * ratio;
+    viewState.panY += (e.clientY - lastY) * ratio;
+    lastX = e.clientX;
+    lastY = e.clientY;
+    applyViewTransform();
+  });
+  ["pointerup", "pointercancel", "pointerleave"].forEach((evt) =>
+    svg.addEventListener(evt, () => {
+      dragging = false;
+      svg.classList.remove("panning");
+    })
+  );
 }
 
 // ---------- Animação / playback do trace ----------
@@ -567,12 +796,4 @@ function renderFinalResult(tipo, result) {
       </table>
     `;
   }
-}
-
-// ---------- Finalizar aplicação ----------
-
-function finalizarAplicacao() {
-  if (!confirm("Finalizar a aplicação? Isso encerra o loop interativo.")) return;
-  stopTimer();
-  document.getElementById("overlay-fim").hidden = false;
 }

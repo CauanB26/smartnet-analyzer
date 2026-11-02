@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SmartNet Analyzer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
@@ -24,17 +27,36 @@
         <label><input type="checkbox" id="chk-weighted" checked> Ponderado</label>
       </div>
 
-      <form id="form-edge" class="edge-form">
-        <input type="text" id="input-origem" placeholder="Origem" required>
-        <input type="text" id="input-destino" placeholder="Destino" required>
-        <input type="number" id="input-peso" placeholder="Peso" value="1" step="any">
-        <button type="submit" class="btn-primary">+ Aresta</button>
-      </form>
+      <div class="input-tabs">
+        <button type="button" class="tab-btn active" data-tab="tab-manual">Uma por vez</button>
+        <button type="button" class="tab-btn" data-tab="tab-lote">Colar em lote</button>
+      </div>
+
+      <div id="tab-manual" class="tab-panel">
+        <form id="form-edge" class="edge-form">
+          <input type="text" id="input-origem" placeholder="Origem" required>
+          <input type="text" id="input-destino" placeholder="Destino" required>
+          <input type="number" id="input-peso" placeholder="Peso" value="1" step="any">
+          <button type="submit" class="btn-primary">+ Aresta</button>
+        </form>
+
+        <form id="form-vertice" class="vertex-form">
+          <input type="text" id="input-vertice-isolado" placeholder="Vértice isolado (sem arestas)">
+          <button type="submit">+ Vértice</button>
+        </form>
+      </div>
+
+      <div id="tab-lote" class="tab-panel" hidden>
+        <p class="hint">Uma aresta por linha: <code>origem destino peso</code> (peso é opcional). Isso <strong>substitui</strong> as arestas pendentes atuais.</p>
+        <textarea id="input-lote" class="lote-textarea" rows="6" placeholder="O A 2&#10;O B 5&#10;A B 2&#10;..."></textarea>
+        <button type="button" id="btn-importar-lote" class="btn-primary">Importar linhas</button>
+      </div>
 
       <table class="edge-table">
         <thead><tr><th>Origem</th><th>Destino</th><th>Peso</th><th></th></tr></thead>
         <tbody id="edge-list"></tbody>
       </table>
+      <p id="vertex-list" class="vertex-list"></p>
 
       <div class="button-row">
         <button id="btn-aplicar-grafo" class="btn-primary">Aplicar grafo</button>
@@ -48,8 +70,27 @@
     </aside>
 
     <section class="panel panel-graph">
-      <h2>3. Visualização</h2>
-      <svg id="graph-svg" viewBox="0 0 600 600"></svg>
+      <div class="panel-graph-header">
+        <h2>3. Visualização</h2>
+        <div class="zoom-controls">
+          <button type="button" id="btn-zoom-out" title="Diminuir zoom">&minus;</button>
+          <button type="button" id="btn-zoom-reset" title="Resetar vista">Reset</button>
+          <button type="button" id="btn-zoom-in" title="Aumentar zoom">+</button>
+        </div>
+      </div>
+      <div class="svg-wrap">
+        <svg id="graph-svg" viewBox="0 0 600 600"></svg>
+        <div id="empty-state" class="empty-state">
+          <svg class="empty-state-icon" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="16" cy="16" r="7" stroke="currentColor" stroke-width="2.5"/>
+            <circle cx="48" cy="20" r="7" stroke="currentColor" stroke-width="2.5"/>
+            <circle cx="30" cy="48" r="7" stroke="currentColor" stroke-width="2.5"/>
+            <path d="M22 19 L41 20 M20 23 L27 42 M35 44 L44 26" stroke="currentColor" stroke-width="2.5" stroke-dasharray="4 4"/>
+          </svg>
+          <p>Nenhum grafo carregado ainda.</p>
+          <p class="empty-state-hint">Use "Carregar grafo de teste" ou monte o seu no formulário ao lado.</p>
+        </div>
+      </div>
       <div class="legend">
         <span class="legend-item"><i class="dot dot-default"></i>não visitado</span>
         <span class="legend-item"><i class="dot dot-current"></i>atual</span>
@@ -96,6 +137,10 @@
   </main>
 
   <footer class="app-footer">
+    <div class="credits">
+      <strong>Cauan Magalhães Baptista</strong> (202501700632) · <strong>Bernardo Cicchelli</strong> (202407095852)<br>
+      Engenharia de Software · Análise e Complexidade de Algoritmos (IBM3121) · Prof. Cassius Figueiredo
+    </div>
     <button id="btn-finalizar" class="btn-danger btn-finalizar">Finalizar aplicação</button>
   </footer>
 
@@ -105,6 +150,19 @@
       <p>Obrigado por usar o SmartNet Analyzer.</p>
     </div>
   </div>
+
+  <div id="confirm-modal" class="overlay" hidden>
+    <div class="overlay-box">
+      <h2>Finalizar aplicação?</h2>
+      <p>Isso encerra o loop interativo. Você pode recarregar a página para começar de novo.</p>
+      <div class="overlay-actions">
+        <button id="btn-confirm-cancelar">Cancelar</button>
+        <button id="btn-confirm-ok" class="btn-danger">Finalizar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container" class="toast-container" aria-live="polite"></div>
 
 </div>
 <script src="{{ url_for('static', filename='script.js') }}"></script>

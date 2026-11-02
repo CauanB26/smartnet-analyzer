@@ -58,9 +58,38 @@ Navegador (HTML/CSS/JS)  <-- fetch/JSON -->  Servidor Flask (Python)
 
 Cada algoritmo (em Python) devolve, além do resultado final, um "trace": uma sequência de passos da execução. O front-end reproduz esse trace no desenho do grafo, destacando vértices e arestas (atual, visitado, em análise, aceito, rejeitado) com animação, controles de play/pausa/passo-a-passo e velocidade ajustável.
 
+### Como o front-end se comunica com o back-end
+
+Não existe lógica de grafo nem de algoritmo em JavaScript. O front-end só desenha e anima; quem calcula é sempre o Python. A comunicação é via `fetch()` fazendo requisições HTTP para uma API REST servida pelo próprio Flask (mesma origem, sem CORS):
+
+| Método | Rota | O que faz | Corpo da requisição | Resposta |
+|---|---|---|---|---|
+| GET | `/api/grafo` | Devolve o grafo atualmente em memória | — | `{ directed, weighted, adjacency }` |
+| POST | `/api/grafo` | Substitui o grafo atual pelo enviado | `{ directed, weighted, edges: [...] }` | grafo atualizado |
+| DELETE | `/api/grafo` | Apaga o grafo atual | — | grafo vazio |
+| POST | `/api/grafo-teste` | Carrega o grafo de teste do enunciado | — | grafo carregado |
+| POST | `/api/algoritmo/dfs` | Executa DFS a partir de um vértice | `{ origem }` | resultado + `trace` |
+| POST | `/api/algoritmo/bfs` | Executa BFS a partir de um vértice | `{ origem }` | resultado + `trace` |
+| POST | `/api/algoritmo/dijkstra` | Executa Dijkstra a partir de um vértice | `{ origem }` | resultado + `trace` |
+| POST | `/api/algoritmo/kruskal` | Executa Kruskal (MST) | `{}` | resultado + `trace` |
+
+Fluxo típico: o usuário clica em "Aplicar grafo" → `script.js` monta um JSON com as arestas digitadas → `POST /api/grafo` → `app.py` reconstrói o objeto `Graph` (lista de adjacência) do zero e devolve a estrutura em JSON → o front redesenha o SVG. Ao clicar em um algoritmo, o mesmo padrão se repete: `POST /api/algoritmo/<nome>` → `algorithms.py` roda o algoritmo sobre o `Graph` atual e devolve o resultado final **e** o `trace` (lista de passos) → o JavaScript reproduz o `trace` no SVG, um passo por vez, de forma animada.
+
 ## Como executar
 
 Pré-requisitos: **Python 3.10+** instalado.
+
+**Resumo rápido (copiar e colar):**
+```bash
+git clone https://github.com/CauanB26/smartnet-analyzer.git
+cd smartnet-analyzer/backend
+python -m venv venv && venv\Scripts\activate   # Windows (use source venv/bin/activate no Linux/Mac)
+pip install -r requirements.txt
+python app.py
+```
+Depois abra **http://127.0.0.1:5000** no navegador.
+
+**Passo a passo:**
 
 1. Clone o repositório e entre na pasta do backend:
    ```bash
@@ -91,15 +120,46 @@ A aplicação abre com o grafo vazio. Use o botão **"Carregar grafo de teste"**
 
 Depois de carregar um grafo, escolha o vértice de origem (para DFS/BFS/Dijkstra) e clique em um dos botões de algoritmo para ver a animação e o resultado. O botão **"Finalizar aplicação"** encerra o loop interativo.
 
+### Entrando com um grafo novo (ex.: o grafo do professor na apresentação)
+
+Há duas formas de inserir arestas, nas abas do passo 1:
+
+- **"Uma por vez":** digite origem/destino/peso e clique em "+ Aresta" (repita para cada aresta). Também dá pra adicionar um vértice isolado (sem arestas) pelo campo abaixo.
+- **"Colar em lote":** cole várias linhas de uma vez, uma aresta por linha, no formato `origem destino peso` (peso é opcional se o grafo não for ponderado). Essa opção **substitui** a lista de arestas pendente — útil para digitar rapidamente um grafo grande ditado na hora.
+
+Em ambos os casos, marque "Direcionado" e/ou "Ponderado" conforme o grafo pedido, e só depois clique em **"Aplicar grafo"** para efetivamente construir a estrutura e habilitar os algoritmos.
+
+## Testes automatizados
+
+Além dos quatro algoritmos funcionarem na interface, o projeto tem uma suíte de testes automatizados (`pytest`) que verifica a corretude de forma mais rigorosa do que apenas rodar e olhar o resultado manualmente:
+
+- **`test_graph.py`** — testa a estrutura de dados (lista de adjacência): grafos direcionados/não-direcionados, com/sem peso, vértices isolados.
+- **`test_algorithms.py`** — testa os 4 algoritmos no grafo de teste do próprio enunciado.
+- **`test_grafos_classicos.py`** — testa os algoritmos em **grafos clássicos de livros-texto de algoritmos** (o grafo de 5 vértices usado para ilustrar Dijkstra e o grafo de 9 vértices usado para ilustrar MST, ambos com resultados numéricos amplamente conhecidos), simulando o cenário de "grafo nunca visto antes" — o mesmo da apresentação.
+- **`test_helpers.py`** — verificações de propriedade reutilizáveis, que não dependem de decorar um resultado específico:
+  - Dijkstra: checa a desigualdade triangular (`dist[v] <= dist[u] + peso(u,v)`) para toda aresta, e que cada distância bate com `dist[predecessor] + peso`.
+  - Kruskal: checa que o resultado é uma árvore geradora válida (V-1 arestas, sem ciclos, conecta todos os vértices), e cruza o custo total com uma implementação independente de **Prim** (dois algoritmos diferentes concordando no resultado é uma evidência forte de corretude).
+
+Para rodar os testes:
+```bash
+cd backend
+pip install -r requirements-dev.txt
+pytest -v
+```
+
 ## Estrutura do repositório
 
 ```
 backend/
-  app.py              # servidor Flask + rotas da API
-  graph.py             # estrutura de dados (lista de adjacência)
-  algorithms.py         # DFS, BFS, Dijkstra, Kruskal
-  test_algorithms.py    # validação dos algoritmos com o grafo de teste
+  app.py                    # servidor Flask + rotas da API
+  graph.py                   # estrutura de dados (lista de adjacência)
+  algorithms.py               # DFS, BFS, Dijkstra, Kruskal
+  test_graph.py                # testes da estrutura de dados
+  test_algorithms.py           # testes dos algoritmos no grafo do enunciado
+  test_grafos_classicos.py     # testes em grafos clássicos (CLRS)
+  test_helpers.py               # verificações de propriedade reutilizáveis
   requirements.txt
+  requirements-dev.txt         # + pytest, para rodar os testes
 frontend/
   templates/index.html
   static/style.css
