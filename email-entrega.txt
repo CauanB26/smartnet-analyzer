@@ -1,0 +1,17 @@
+PARA: cassius.figueiredo@professores.ibmec.edu.br
+ASSUNTO: Entrega AC Complexidade Algoritmos
+
+---
+
+Prezado Professor Cassius,
+
+Segue o link do repositório GitHub com a entrega da Avaliação Contínua (AC) da disciplina Análise e Complexidade de Algoritmos (IBM3121) — Projeto SmartNet Analyzer.
+
+Link do repositório: https://github.com/CauanB26/smartnet-analyzer
+
+Integrantes do grupo:
+- Cauan Magalhães Baptista — Matrícula 202501700632
+- Bernardo Cicchelli — Matrícula 202407095852
+
+Atenciosamente,
+Cauan Magalhães Baptista
