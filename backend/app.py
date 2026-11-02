@@ -1,6 +1,12 @@
 from flask import Flask, jsonify, render_template, request
 
 from algorithms import bfs, dfs, dijkstra, kruskal
+from grafos_classicos import (
+    DIJKSTRA_CLASSICO_RESULTADO_ESPERADO,
+    MST_CLASSICO_CUSTO_ESPERADO,
+    grafo_dijkstra_classico,
+    grafo_mst_classico,
+)
 from graph import Graph, grafo_teste
 
 app = Flask(
@@ -54,6 +60,33 @@ def limpar_grafo():
 def carregar_grafo_teste():
     estado["grafo"] = grafo_teste()
     return jsonify(estado["grafo"].to_dict())
+
+
+_GRAFOS_CLASSICOS = {
+    "dijkstra": {
+        "construtor": grafo_dijkstra_classico,
+        "descricao": "Grafo classico (livro-texto) para Dijkstra: 5 vertices, direcionado.",
+        "resultado_esperado": f"Distancias esperadas a partir de s: {DIJKSTRA_CLASSICO_RESULTADO_ESPERADO}",
+    },
+    "mst": {
+        "construtor": grafo_mst_classico,
+        "descricao": "Grafo classico (livro-texto) para MST: 9 vertices, nao-direcionado.",
+        "resultado_esperado": f"Custo total esperado da MST (Kruskal): {MST_CLASSICO_CUSTO_ESPERADO}",
+    },
+}
+
+
+@app.route("/api/grafo-classico/<nome>", methods=["POST"])
+def carregar_grafo_classico(nome):
+    info = _GRAFOS_CLASSICOS.get(nome)
+    if info is None:
+        return jsonify({"erro": f"Grafo classico '{nome}' nao existe."}), 404
+
+    estado["grafo"] = info["construtor"]()
+    resposta = estado["grafo"].to_dict()
+    resposta["descricao"] = info["descricao"]
+    resposta["resultado_esperado"] = info["resultado_esperado"]
+    return jsonify(resposta)
 
 
 def _vertice_origem_valido(grafo, dados):

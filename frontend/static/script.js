@@ -40,6 +40,8 @@ function bindUI() {
   document.getElementById("btn-grafo-teste").addEventListener("click", carregarGrafoTeste);
   document.getElementById("btn-limpar-grafo").addEventListener("click", limparGrafo);
   document.getElementById("btn-importar-lote").addEventListener("click", importarLote);
+  document.getElementById("btn-grafo-classico-dijkstra").addEventListener("click", () => carregarGrafoClassico("dijkstra"));
+  document.getElementById("btn-grafo-classico-mst").addEventListener("click", () => carregarGrafoClassico("mst"));
 
   document.querySelectorAll(".tab-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -213,6 +215,11 @@ async function fetchGrafo() {
 }
 
 async function aplicarGrafo() {
+  if (pendingEdges.length === 0 && pendingVertices.length === 0) {
+    showToast('Nenhuma aresta ou vértice informado. Use "Apagar grafo" se a intenção é esvaziar.', "error");
+    return;
+  }
+
   const body = {
     directed: document.getElementById("chk-directed").checked,
     weighted: document.getElementById("chk-weighted").checked,
@@ -244,6 +251,29 @@ async function carregarGrafoTeste() {
 
   renderAll(data);
   showToast("Grafo de teste do enunciado carregado.", "success");
+}
+
+async function carregarGrafoClassico(nome) {
+  const resp = await fetch(`/api/grafo-classico/${nome}`, { method: "POST" });
+  const data = await resp.json();
+  if (!resp.ok) {
+    showToast(data.erro || "Erro ao carregar grafo clássico.", "error");
+    return;
+  }
+
+  document.getElementById("chk-directed").checked = data.directed;
+  document.getElementById("chk-weighted").checked = data.weighted;
+  document.getElementById("input-peso").disabled = !data.weighted;
+  pendingEdges = edgesFromAdjacency(data);
+  pendingVertices = [];
+  renderEdgeTable();
+  renderVertexList();
+
+  renderAll(data);
+  const infoBox = document.getElementById("classico-info");
+  infoBox.textContent = `${data.descricao} ${data.resultado_esperado}`;
+  infoBox.hidden = false;
+  showToast("Grafo clássico carregado — veja o resultado esperado destacado ao lado.", "success");
 }
 
 async function limparGrafo() {
@@ -294,6 +324,7 @@ async function runAlgorithm(tipo, btnEl) {
 
 function renderAll(data) {
   currentGraphData = data;
+  document.getElementById("classico-info").hidden = true;
   renderAdjacencyView(data);
   renderGraphSvg(data);
   populateOriginSelect(data);

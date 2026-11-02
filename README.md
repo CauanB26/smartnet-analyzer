@@ -147,6 +147,55 @@ pip install -r requirements-dev.txt
 pytest -v
 ```
 
+### Validar pela própria interface (sem rodar pytest)
+
+Na seção "Grafos clássicos (testes)" da interface, há dois botões que carregam os mesmos grafos usados em `test_grafos_classicos.py` diretamente na aplicação:
+
+- **"Clássico: Dijkstra"** — carrega o grafo de 5 vértices abaixo e mostra o resultado esperado na tela; basta rodar o algoritmo Dijkstra a partir de `s` e comparar.
+- **"Clássico: MST"** — carrega o grafo de 9 vértices abaixo; basta rodar o Kruskal e comparar o custo total.
+
+Isso permite ao professor (ou a qualquer pessoa) verificar a corretude da implementação visualmente, sem precisar instalar `pytest` ou ler código.
+
+#### Grafo clássico de Dijkstra (direcionado, ponderado, 5 vértices)
+
+| Origem | Destino | Peso |
+|:---:|:---:|:---:|
+| s | t | 10 |
+| s | y | 5 |
+| t | x | 1 |
+| t | y | 2 |
+| x | z | 4 |
+| y | t | 3 |
+| y | x | 9 |
+| y | z | 2 |
+| z | s | 7 |
+| z | x | 6 |
+
+**Resultado esperado (Dijkstra a partir de `s`):** `s=0, t=8, x=9, y=5, z=7`
+
+#### Grafo clássico de MST (não-direcionado, ponderado, 9 vértices)
+
+| Origem | Destino | Peso |
+|:---:|:---:|:---:|
+| a | b | 4 |
+| a | h | 8 |
+| b | c | 8 |
+| b | h | 11 |
+| c | d | 7 |
+| c | f | 4 |
+| c | i | 2 |
+| d | e | 9 |
+| d | f | 14 |
+| e | f | 10 |
+| f | g | 2 |
+| g | h | 1 |
+| g | i | 6 |
+| h | i | 7 |
+
+**Resultado esperado (Kruskal):** custo total **37** (um conjunto possível de arestas da MST: `g-h(1), c-i(2), f-g(2), a-b(4), c-f(4), c-d(7), a-h(8), d-e(9)` — pode variar em caso de empate de peso, mas o custo total mínimo é sempre 37).
+
+Ambos os grafos são definidos uma única vez em `backend/grafos_classicos.py`, e tanto os testes automatizados quanto os botões da interface importam dessa mesma fonte — não há risco de a documentação, os testes e o que roda na tela divergirem entre si.
+
 ## Estrutura do repositório
 
 ```
@@ -154,6 +203,7 @@ backend/
   app.py                    # servidor Flask + rotas da API
   graph.py                   # estrutura de dados (lista de adjacência)
   algorithms.py               # DFS, BFS, Dijkstra, Kruskal
+  grafos_classicos.py          # grafos clássicos (usados nos testes E nos botões da interface)
   test_graph.py                # testes da estrutura de dados
   test_algorithms.py           # testes dos algoritmos no grafo do enunciado
   test_grafos_classicos.py     # testes em grafos clássicos (CLRS)

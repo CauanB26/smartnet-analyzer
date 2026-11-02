@@ -64,6 +64,14 @@
         <button id="btn-limpar-grafo" class="btn-danger">Apagar grafo</button>
       </div>
 
+      <h2>Grafos clássicos (testes)</h2>
+      <p class="hint">Grafos de livros-texto, usados também na suíte de testes automatizados — ver <code>backend/grafos_classicos.py</code>.</p>
+      <div class="button-row">
+        <button id="btn-grafo-classico-dijkstra" data-nome="dijkstra">Clássico: Dijkstra</button>
+        <button id="btn-grafo-classico-mst" data-nome="mst">Clássico: MST</button>
+      </div>
+      <div id="classico-info" class="complexity-box" hidden></div>
+
       <h2>2. Estrutura em memória</h2>
       <p class="hint">Lista de adjacência, implementada do zero — O(V + E) de espaço.</p>
       <pre id="adjacency-view" class="adjacency-view">(grafo vazio)</pre>

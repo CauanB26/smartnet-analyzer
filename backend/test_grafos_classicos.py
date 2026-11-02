@@ -9,50 +9,20 @@ apresentacao, em que o professor propoe um grafo inedito.
 """
 
 from algorithms import bfs, dfs, dijkstra, kruskal
-from graph import Graph, grafo_teste
+from graph import grafo_teste
+from grafos_classicos import (
+    DIJKSTRA_CLASSICO_RESULTADO_ESPERADO,
+    MST_CLASSICO_CUSTO_ESPERADO,
+    grafo_dijkstra_classico,
+    grafo_mst_classico,
+)
 from test_helpers import assert_dijkstra_valido, assert_mst_valida, prim_mst_peso_total
-
-
-def grafo_dijkstra_classico():
-    """Grafo direcionado e ponderado classico (5 vertices: s, t, x, y, z),
-    usado em livros-texto de algoritmos para ilustrar o Dijkstra."""
-    g = Graph(directed=True, weighted=True)
-    arestas = [
-        ("s", "t", 10), ("s", "y", 5),
-        ("t", "x", 1), ("t", "y", 2),
-        ("x", "z", 4),
-        ("y", "t", 3), ("y", "x", 9), ("y", "z", 2),
-        ("z", "s", 7), ("z", "x", 6),
-    ]
-    for origem, destino, peso in arestas:
-        g.add_edge(origem, destino, peso)
-    return g
-
-
-def grafo_mst_classico():
-    """Grafo nao-direcionado e ponderado classico (9 vertices, a..i),
-    usado em livros-texto de algoritmos para ilustrar MST (Kruskal/Prim)."""
-    g = Graph(directed=False, weighted=True)
-    arestas = [
-        ("a", "b", 4), ("a", "h", 8),
-        ("b", "c", 8), ("b", "h", 11),
-        ("c", "d", 7), ("c", "f", 4), ("c", "i", 2),
-        ("d", "e", 9), ("d", "f", 14),
-        ("e", "f", 10),
-        ("f", "g", 2),
-        ("g", "h", 1), ("g", "i", 6),
-        ("h", "i", 7),
-    ]
-    for origem, destino, peso in arestas:
-        g.add_edge(origem, destino, peso)
-    return g
 
 
 def test_dijkstra_grafo_classico_distancias_conhecidas():
     g = grafo_dijkstra_classico()
     r = dijkstra(g, "s")
-    esperado = {"s": 0, "t": 8, "x": 9, "y": 5, "z": 7}
-    assert r["distancias"] == esperado
+    assert r["distancias"] == DIJKSTRA_CLASSICO_RESULTADO_ESPERADO
 
 
 def test_dijkstra_grafo_classico_satisfaz_propriedades_gerais():
@@ -64,7 +34,7 @@ def test_dijkstra_grafo_classico_satisfaz_propriedades_gerais():
 def test_kruskal_grafo_classico_peso_total_conhecido():
     g = grafo_mst_classico()
     r = kruskal(g)
-    assert r["custo_total"] == 37
+    assert r["custo_total"] == MST_CLASSICO_CUSTO_ESPERADO
 
 
 def test_kruskal_grafo_classico_produz_arvore_geradora_valida():
