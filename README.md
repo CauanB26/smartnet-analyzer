@@ -8,6 +8,7 @@ Ferramenta de mapeamento e análise de infraestrutura de cidades inteligentes, d
 |---|---|
 | Cauan Magalhães Baptista | 202501700632 |
 | Bernardo Cicchelli | 202407095852 |
+| Luahn Kayê | 202507377256 |
 
 ## Dados acadêmicos
 
