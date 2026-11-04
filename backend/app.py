@@ -14,6 +14,11 @@ app = Flask(
     template_folder="../frontend/templates",
     static_folder="../frontend/static",
 )
+# Preserva a ordem de insercao dos vertices (ordem real da lista de
+# adjacencia) no JSON devolvido pela API. Sem isso, o Flask ordena as
+# chaves alfabeticamente por padrao, e a exibicao/selecao de origem no
+# front-end nao reflete a ordem real de armazenamento.
+app.json.sort_keys = False
 
 estado = {"grafo": Graph()}
 
